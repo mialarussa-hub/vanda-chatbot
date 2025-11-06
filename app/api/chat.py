@@ -203,12 +203,12 @@ async def chat(request: ChatRequest):
                     text=request.message
                 )
 
-                # Cerca documenti simili
+                # Cerca documenti simili (usa parametri configurabili dal pannello admin)
                 logger.debug("Searching similar documents...")
                 documents = rag_service.search_similar_documents(
                     query_embedding=query_embedding,
-                    match_count=5,  # Top 5 documenti per avere più contesto
-                    match_threshold=0.60,  # Soglia bilanciata per qualità e quantità
+                    match_count=None,  # Usa default da database (configurabile dal pannello admin)
+                    match_threshold=None,  # Usa default da database (configurabile dal pannello admin)
                     metadata_filter=request.rag_filters
                 )
 
