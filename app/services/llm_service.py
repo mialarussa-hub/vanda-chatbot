@@ -441,7 +441,9 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
                     "content": msg.content
                 })
 
-            logger.debug(f"Added {len(recent_history)} history messages")
+            logger.info(f"🧠 LLM: Added {len(recent_history)} history messages to context (max: {self.max_history_messages})")
+        else:
+            logger.warning("⚠️ LLM: No conversation history provided!")
 
         # 4. User message corrente
         messages.append({
@@ -449,7 +451,7 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
             "content": user_message
         })
 
-        logger.debug(f"Built {len(messages)} total messages for LLM")
+        logger.info(f"📤 LLM: Sending {len(messages)} total messages to OpenAI (system + context + history + user)")
 
         return messages
 

@@ -178,9 +178,15 @@ async def chat(request: ChatRequest):
             include_system=False
         )
 
-        logger.debug(
-            f"Retrieved {len(conversation_history)} messages from history"
+        logger.info(
+            f"📜 HISTORY: Retrieved {len(conversation_history)} messages for session {request.session_id[:8]}..."
         )
+
+        # Log dettagliato della history (primi 50 char di ogni messaggio)
+        if conversation_history:
+            for i, msg in enumerate(conversation_history):
+                preview = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+                logger.info(f"  [{i+1}] {msg.role}: {preview}")
 
         # ====================================================================
         # 3. RAG - RECUPERO DOCUMENTI RILEVANTI
