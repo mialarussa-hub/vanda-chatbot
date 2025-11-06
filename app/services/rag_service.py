@@ -100,23 +100,339 @@ class RAGService:
             logger.error(f"Failed to reload RAG configuration: {e}")
             return False
 
+    # ========================================================================
+    # HYBRID SEARCH - QUERY CLASSIFICATION & ENTITY EXTRACTION
+    # ========================================================================
+
+    def _classify_query_type(self, query: str) -> Dict[str, Any]:
+        """
+        Classifica il tipo di query per determinare la strategia di ricerca ottimale.
+
+        Analizza la query per riconoscere:
+        - Nomi propri/entità (es. "Campana di Ferro", "Zara", "Alessandro")
+        - Categorie specifiche (es. "retail", "food", "lusso")
+        - Query generiche/semantiche (es. "quali servizi", "progetti importanti")
+
+        Args:
+            query: Query utente da classificare
+
+        Returns:
+            Dictionary con:
+                - type: "entity_based", "category_based", o "semantic"
+                - entities: Lista di entità estratte (se trovate)
+                - categories: Lista di categorie identificate (se trovate)
+                - confidence: Livello di confidenza (0.0-1.0)
+
+        Examples:
+            >>> _classify_query_type("mostrami il progetto Campana di Ferro")
+            {"type": "entity_based", "entities": ["Campana di Ferro"], "confidence": 0.9}
+
+            >>> _classify_query_type("quali sono i progetti retail")
+            {"type": "category_based", "categories": ["retail"], "confidence": 0.8}
+
+            >>> _classify_query_type("parlami dei vostri servizi")
+            {"type": "semantic", "confidence": 1.0}
+        """
+        import re
+
+        query_lower = query.lower()
+        result = {
+            "type": "semantic",
+            "entities": [],
+            "categories": [],
+            "confidence": 1.0
+        }
+
+        # ====================================================================
+        # 1. ESTRAI ENTITÀ (NOMI PROPRI)
+        # ====================================================================
+
+        # Pattern per nomi propri italiani:
+        # - Due o più parole con maiuscola iniziale
+        # - Può includere articoli/preposizioni: "di", "del", "della", "dei", "degli"
+        # - Es: "Campana di Ferro", "Casa T", "Zara Home", "Alessandro Paganini"
+        entity_patterns = [
+            # Pattern 1: Nome + preposizione + Nome (es. "Campana di Ferro")
+            r'\b([A-Z][a-zàèéìòù]+(?:\s+(?:di|del|della|dei|degli|delle)\s+[A-Z][a-zàèéìòù]+)+)\b',
+            # Pattern 2: Due o più parole con maiuscola (es. "Zara Home", "Casa T")
+            r'\b([A-Z][a-zàèéìòù]+(?:\s+[A-Z][a-zàèéìòù]+)+)\b',
+            # Pattern 3: Acronimi o nomi brevi maiuscoli (es. "WTC", "ZARA")
+            r'\b([A-Z]{2,})\b',
+            # Pattern 4: Nome + iniziale (es. "Alessandro P.", "Mario R.")
+            r'\b([A-Z][a-zàèéìòù]+\s+[A-Z]\.?)\b',
+        ]
+
+        entities = []
+        for pattern in entity_patterns:
+            matches = re.findall(pattern, query)
+            entities.extend(matches)
+
+        # Rimuovi duplicati preservando ordine
+        entities = list(dict.fromkeys(entities))
+
+        # Filtra false positive comuni
+        false_positives = ["Vanda", "Vanda Designers", "Designers"]  # Nome dell'azienda stessa
+        entities = [e for e in entities if e not in false_positives]
+
+        if entities:
+            result["entities"] = entities
+            result["type"] = "entity_based"
+            result["confidence"] = 0.9
+            logger.debug(f"🔍 QUERY TYPE: entity_based | Entities: {entities}")
+            return result
+
+        # ====================================================================
+        # 2. IDENTIFICA CATEGORIE
+        # ====================================================================
+
+        # Categorie note nel database (case-insensitive)
+        known_categories = {
+            "retail": ["retail", "negozio", "negozi", "store", "punto vendita"],
+            "food": ["food", "ristorante", "ristoranti", "bar", "caffè", "cafe"],
+            "lusso": ["lusso", "luxury", "premium", "alta gamma"],
+            "hospitality": ["hospitality", "hotel", "albergo", "resort"],
+            "residenziale": ["residenziale", "casa", "appartamento", "abitazione"],
+            "uffici": ["ufficio", "uffici", "office", "coworking"],
+            "showroom": ["showroom", "esposizione"],
+            "corporate": ["corporate", "aziendale"]
+        }
+
+        categories_found = []
+        for category, keywords in known_categories.items():
+            for keyword in keywords:
+                if keyword in query_lower:
+                    categories_found.append(category)
+                    break  # Trova solo una volta per categoria
+
+        if categories_found:
+            result["categories"] = categories_found
+            result["type"] = "category_based"
+            result["confidence"] = 0.8
+            logger.debug(f"🔍 QUERY TYPE: category_based | Categories: {categories_found}")
+            return result
+
+        # ====================================================================
+        # 3. DEFAULT: SEMANTIC SEARCH
+        # ====================================================================
+
+        logger.debug("🔍 QUERY TYPE: semantic (generic query)")
+        return result
+
+    def _search_by_entity(
+        self,
+        entity: str,
+        max_results: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Cerca documenti per nome entità usando metadata filters.
+
+        Cerca match esatti o parziali nei campi:
+        - heading (titolo)
+        - client (cliente)
+        - brand (brand)
+        - tags (tags)
+
+        Args:
+            entity: Nome entità da cercare (es. "Campana di Ferro")
+            max_results: Numero massimo risultati
+
+        Returns:
+            Lista di documenti con formato:
+                {
+                    'id': int,
+                    'content': str,
+                    'metadata': dict,
+                    'similarity': float,  # 1.0 per match esatti
+                    'match_type': str     # 'client', 'heading', 'brand', 'tags'
+                }
+        """
+        try:
+            logger.info(f"🔎 Entity search: '{entity}'")
+
+            results = []
+
+            # Cerca in diversi campi metadata usando ILIKE (case-insensitive pattern matching)
+            search_fields = [
+                ("heading", "metadata->>heading"),
+                ("client", "metadata->>client"),
+                ("brand", "metadata->>brand"),
+                # tags contiene stringhe separate da virgola, quindi usiamo contains
+            ]
+
+            for field_name, field_path in search_fields:
+                try:
+                    # Query con ILIKE per pattern matching case-insensitive
+                    # Il pattern %entity% trova "entity" ovunque nella stringa
+                    response = self.client.table(self.table_name)\
+                        .select("id, content, metadata")\
+                        .ilike(field_path, f"%{entity}%")\
+                        .limit(max_results)\
+                        .execute()
+
+                    if response.data:
+                        logger.info(f"  ✅ Found {len(response.data)} matches in '{field_name}'")
+                        for doc in response.data:
+                            # Evita duplicati (stesso documento già trovato in altro campo)
+                            if not any(r['id'] == doc['id'] for r in results):
+                                results.append({
+                                    'id': doc['id'],
+                                    'content': doc['content'],
+                                    'metadata': doc['metadata'],
+                                    'similarity': 1.0,  # Match esatto = similarity massima
+                                    'match_type': field_name
+                                })
+
+                except Exception as e:
+                    logger.warning(f"Error searching in {field_name}: {e}")
+                    continue
+
+            # Cerca anche nei tags (formato diverso: stringa con virgole)
+            try:
+                response = self.client.table(self.table_name)\
+                    .select("id, content, metadata")\
+                    .ilike("metadata->>tags", f"%{entity}%")\
+                    .limit(max_results)\
+                    .execute()
+
+                if response.data:
+                    logger.info(f"  ✅ Found {len(response.data)} matches in 'tags'")
+                    for doc in response.data:
+                        if not any(r['id'] == doc['id'] for r in results):
+                            results.append({
+                                'id': doc['id'],
+                                'content': doc['content'],
+                                'metadata': doc['metadata'],
+                                'similarity': 1.0,
+                                'match_type': 'tags'
+                            })
+
+            except Exception as e:
+                logger.warning(f"Error searching in tags: {e}")
+
+            # Ordina per priority (se presente) per mostrare progetti importanti per primi
+            results.sort(
+                key=lambda x: x['metadata'].get('priority', 0),
+                reverse=True
+            )
+
+            results = results[:max_results]
+
+            logger.info(f"🎯 Entity search completed: {len(results)} total matches")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in entity search: {e}")
+            return []
+
+    def _merge_hybrid_results(
+        self,
+        entity_results: List[Dict[str, Any]],
+        vector_results: List[Dict[str, Any]],
+        max_results: int = 25
+    ) -> List[Dict[str, Any]]:
+        """
+        Combina risultati da entity search e vector search in un'unica lista ordinata.
+
+        Strategia di merge:
+        1. Priorità ASSOLUTA ai match esatti da entity search (similarity 1.0)
+        2. Aggiunge vector results rimanenti (evitando duplicati)
+        3. Limita a max_results
+
+        Args:
+            entity_results: Risultati da ricerca entità (metadata-based)
+            vector_results: Risultati da ricerca semantica (vector-based)
+            max_results: Numero massimo risultati finali
+
+        Returns:
+            Lista merged e ordinata di risultati
+        """
+        try:
+            logger.info(f"🔀 Merging results: {len(entity_results)} entity + {len(vector_results)} vector")
+
+            merged = []
+            seen_ids = set()
+
+            # ================================================================
+            # 1. PRIORITÀ: Match esatti da entity search
+            # ================================================================
+            for result in entity_results:
+                if result['id'] not in seen_ids:
+                    merged.append(result)
+                    seen_ids.add(result['id'])
+
+            logger.info(f"  📌 Added {len(merged)} entity matches (priority)")
+
+            # ================================================================
+            # 2. AGGIUNGI: Vector results (evita duplicati)
+            # ================================================================
+            vector_added = 0
+            for result in vector_results:
+                if result['id'] not in seen_ids:
+                    merged.append(result)
+                    seen_ids.add(result['id'])
+                    vector_added += 1
+
+                # Limita al numero massimo
+                if len(merged) >= max_results:
+                    break
+
+            logger.info(f"  🔍 Added {vector_added} vector matches")
+
+            # ================================================================
+            # 3. ORDINA: Entity matches (1.0) in cima, poi per similarity
+            # ================================================================
+            # A parità di similarity, ordina per priority
+            merged.sort(
+                key=lambda x: (
+                    x['similarity'],
+                    x['metadata'].get('priority', 0)
+                ),
+                reverse=True
+            )
+
+            # Limita al numero massimo
+            merged = merged[:max_results]
+
+            logger.info(f"✅ Merge completed: {len(merged)} total results")
+
+            # Log breakdown
+            entity_count = sum(1 for r in merged if r['similarity'] == 1.0)
+            vector_count = len(merged) - entity_count
+            logger.info(f"  📊 Breakdown: {entity_count} entity matches + {vector_count} vector matches")
+
+            return merged
+
+        except Exception as e:
+            logger.error(f"Error merging results: {e}")
+            # Fallback: ritorna solo vector results
+            return vector_results[:max_results]
+
     def search_similar_documents(
         self,
         query_embedding: List[float],
         match_count: Optional[int] = None,
         match_threshold: Optional[float] = None,
-        metadata_filter: Optional[MetadataFilter] = None
+        metadata_filter: Optional[MetadataFilter] = None,
+        query_text: Optional[str] = None
     ) -> List[DocumentChunk]:
         """
-        Cerca documenti simili usando vector similarity search.
+        Cerca documenti simili usando HYBRID SEARCH (entity-based + vector-based).
+
+        HYBRID SEARCH STRATEGY:
+        1. Classifica la query (entity_based, category_based, semantic)
+        2. Se entity_based: Cerca match esatti per entità nei metadata
+        3. Esegue vector similarity search tradizionale
+        4. Merge intelligente dei risultati (entity matches in cima)
 
         Questo metodo:
         1. Valida l'embedding della query
-        2. Applica filtri metadata opzionali
-        3. Recupera tutti i documenti matching
-        4. Calcola cosine similarity client-side
-        5. Filtra per threshold e ordina per similarity
-        6. Ritorna top-k risultati
+        2. Classifica la query per determinare strategia ottimale
+        3. Applica filtri metadata opzionali
+        4. Recupera documenti (entity search + vector search)
+        5. Calcola cosine similarity client-side
+        6. Filtra per threshold e ordina per similarity
+        7. Ritorna top-k risultati
 
         NOTA: In produzione, questa logica dovrebbe essere spostata in una
         stored procedure PostgreSQL per performance ottimali. Per ora
@@ -127,6 +443,7 @@ class RAGService:
             match_count: Numero massimo di risultati (default: da settings)
             match_threshold: Soglia minima similarity 0-1 (default: da settings)
             metadata_filter: Filtri opzionali per metadata JSONB
+            query_text: Testo originale della query (opzionale, per hybrid search)
 
         Returns:
             Lista di DocumentChunk ordinati per similarity (maggiore a minore)
@@ -149,9 +466,67 @@ class RAGService:
                 )
 
             logger.info(
-                f"Searching similar documents - "
+                f"🔍 Searching similar documents - "
                 f"match_count: {match_count}, threshold: {match_threshold}"
             )
+
+            # ================================================================
+            # HYBRID SEARCH: Classifica query ed esegui entity search
+            # ================================================================
+
+            entity_results = []
+            query_classification = None
+
+            if query_text:
+                # Classifica la query per determinare strategia ottimale
+                query_classification = self._classify_query_type(query_text)
+
+                logger.info(
+                    f"📋 Query classification: {query_classification['type']} "
+                    f"(confidence: {query_classification['confidence']:.2f})"
+                )
+
+                # Se la query contiene entità, cerca match esatti nei metadata
+                if query_classification['type'] == 'entity_based' and query_classification['entities']:
+                    logger.info(f"🎯 HYBRID MODE: Entity-based search activated")
+                    logger.info(f"  Entities detected: {query_classification['entities']}")
+
+                    # Cerca per ogni entità rilevata
+                    for entity in query_classification['entities']:
+                        entity_matches = self._search_by_entity(
+                            entity=entity,
+                            max_results=match_count
+                        )
+                        entity_results.extend(entity_matches)
+
+                    # Rimuovi duplicati da entity_results
+                    seen_ids = set()
+                    unique_entity_results = []
+                    for result in entity_results:
+                        if result['id'] not in seen_ids:
+                            unique_entity_results.append(result)
+                            seen_ids.add(result['id'])
+                    entity_results = unique_entity_results
+
+                    if entity_results:
+                        logger.info(f"✅ Entity search: Found {len(entity_results)} exact matches")
+                    else:
+                        logger.warning("⚠️ Entity search: No exact matches found, falling back to pure vector search")
+
+                elif query_classification['type'] == 'category_based' and query_classification['categories']:
+                    # Se la query contiene categorie, applica filtro metadata
+                    logger.info(f"🏷️ CATEGORY MODE: {query_classification['categories']}")
+                    # Applica categoria al metadata_filter (se non già presente)
+                    if not metadata_filter:
+                        metadata_filter = MetadataFilter(category=query_classification['categories'][0])
+                    elif not metadata_filter.category:
+                        metadata_filter.category = query_classification['categories'][0]
+
+            # ================================================================
+            # VECTOR SEARCH: Esegui sempre vector similarity search
+            # ================================================================
+
+            logger.info("🧮 Executing vector similarity search...")
 
             # Costruisci query base
             # NOTA: Selezioniamo embedding solo per il calcolo similarity
@@ -224,16 +599,30 @@ class RAGService:
             else:
                 logger.warning(f"⚠️ NO RESULTS after threshold filter! Try lowering threshold from {match_threshold}")
 
-            # Ordina per similarity (decrescente), poi per priority (decrescente)
-            # A parità di similarity, mostra prima i progetti con priority alta
-            results.sort(
-                key=lambda x: (
-                    x['similarity'],
-                    x['metadata'].get('priority', 0)  # Priority 0 se non presente
-                ),
-                reverse=True
-            )
-            results = results[:match_count]
+            # ================================================================
+            # MERGE RESULTS: Combina entity results + vector results
+            # ================================================================
+
+            if entity_results and query_classification:
+                # HYBRID MODE: Merge intelligente con priorità agli entity matches
+                logger.info("🔀 HYBRID MERGE: Combining entity and vector results...")
+                results = self._merge_hybrid_results(
+                    entity_results=entity_results,
+                    vector_results=results,
+                    max_results=match_count
+                )
+                logger.info(f"✅ Hybrid search completed: {len(results)} merged results")
+            else:
+                # PURE VECTOR MODE: Ordina solo per similarity + priority
+                logger.info("📊 VECTOR MODE: Sorting by similarity + priority...")
+                results.sort(
+                    key=lambda x: (
+                        x['similarity'],
+                        x['metadata'].get('priority', 0)  # Priority 0 se non presente
+                    ),
+                    reverse=True
+                )
+                results = results[:match_count]
 
             logger.info(f"🎯 Final results after sorting and limiting to {match_count}: {len(results)} documents")
 

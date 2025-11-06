@@ -204,12 +204,14 @@ async def chat(request: ChatRequest):
                 )
 
                 # Cerca documenti simili (usa parametri configurabili dal pannello admin)
-                logger.debug("Searching similar documents...")
+                # HYBRID SEARCH: Passa anche query_text per entity-based matching
+                logger.debug("Searching similar documents (hybrid search enabled)...")
                 documents = rag_service.search_similar_documents(
                     query_embedding=query_embedding,
                     match_count=None,  # Usa default da database (configurabile dal pannello admin)
                     match_threshold=None,  # Usa default da database (configurabile dal pannello admin)
-                    metadata_filter=request.rag_filters
+                    metadata_filter=request.rag_filters,
+                    query_text=request.message  # Per hybrid search (entity detection)
                 )
 
                 if documents:
