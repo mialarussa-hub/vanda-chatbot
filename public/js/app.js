@@ -24,6 +24,8 @@ const DOM = {
     sendBtn: null,
     btnClear: null,
     btnFullscreen: null,
+    btnVoiceToggle: null,
+    voiceIndicator: null,
     statMessages: null,
     suggestionBtns: null,
     quickActions: null
@@ -42,6 +44,9 @@ function init() {
 
     // Setup session
     setupSession();
+
+    // Setup Voice Manager
+    setupVoiceManager();
 
     // Attach event listeners
     attachEventListeners();
@@ -64,6 +69,8 @@ function cacheDOMElements() {
     DOM.sendBtn = document.getElementById('send-btn');
     DOM.btnClear = document.getElementById('btn-clear');
     DOM.btnFullscreen = document.getElementById('btn-fullscreen');
+    DOM.btnVoiceToggle = document.getElementById('btn-voice-toggle');
+    DOM.voiceIndicator = document.getElementById('voice-indicator');
     DOM.statMessages = document.getElementById('stat-messages');
     DOM.suggestionBtns = document.querySelectorAll('.suggestion-btn');
     DOM.quickActions = document.querySelectorAll('.quick-action');
@@ -100,6 +107,11 @@ function attachEventListeners() {
 
     // Fullscreen button
     DOM.btnFullscreen.addEventListener('click', handleToggleFullscreen);
+
+    // Voice toggle button
+    if (DOM.btnVoiceToggle) {
+        DOM.btnVoiceToggle.addEventListener('click', handleVoiceToggle);
+    }
 
     // Suggestion buttons
     DOM.suggestionBtns.forEach(btn => {
@@ -240,6 +252,12 @@ async function handleStreamResponse(response) {
                 if (messageElement) {
                     removeStreamingCursor(messageElement);
                 }
+
+                // Notify VoiceManager che streaming è finito
+                if (typeof VoiceManager !== 'undefined' && VoiceManager.enabled) {
+                    await VoiceManager.finishStreaming();
+                }
+
                 break;
             }
 
@@ -306,6 +324,11 @@ async function handleStreamResponse(response) {
 
                     // Accumula messaggio preservando gli spazi
                     assistantMessage += content;
+
+                    // Invia chunk a VoiceManager per TTS real-time
+                    if (typeof VoiceManager !== 'undefined' && VoiceManager.enabled) {
+                        VoiceManager.processStreamingChunk(content);
+                    }
 
                     // Usa requestAnimationFrame per aggiornamento fluido
                     requestAnimationFrame(() => {
@@ -596,6 +619,82 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ============================================================================
+// VOICE INTEGRATION
+// ============================================================================
+
+/**
+ * Setup Voice Manager callbacks
+ */
+function setupVoiceManager() {
+    if (typeof VoiceManager === 'undefined') {
+        console.warn('⚠️ VoiceManager not loaded - voice features disabled');
+        return;
+    }
+
+    // Callback quando speech-to-text è pronto
+    VoiceManager.onTranscript = (transcript) => {
+        console.log('🎤 Transcript received:', transcript);
+        DOM.userInput.value = transcript;
+        // Auto-submit dopo transcript
+        handleSendMessage();
+    };
+
+    // Callback per cambio stato voice
+    VoiceManager.onStateChange = (state) => {
+        updateVoiceUI(state);
+    };
+
+    console.log('✅ VoiceManager callbacks configured');
+}
+
+/**
+ * Toggle voice mode on/off
+ */
+function handleVoiceToggle() {
+    if (typeof VoiceManager === 'undefined') return;
+
+    VoiceManager.toggle();
+}
+
+/**
+ * Update voice UI based on state
+ */
+function updateVoiceUI(state) {
+    if (!DOM.voiceIndicator || !DOM.btnVoiceToggle) return;
+
+    const indicator = DOM.voiceIndicator;
+    const button = DOM.btnVoiceToggle;
+
+    // Reset classes
+    indicator.className = 'voice-indicator';
+    button.className = 'action-btn voice-btn';
+
+    switch (state) {
+        case 'listening':
+            indicator.classList.add('listening');
+            indicator.textContent = '🎤 Ascolto...';
+            button.classList.add('active');
+            break;
+        case 'thinking':
+            indicator.classList.add('thinking');
+            indicator.textContent = '💭 Elaboro...';
+            button.classList.add('active');
+            break;
+        case 'speaking':
+            indicator.classList.add('speaking');
+            indicator.textContent = '🔊 Parlo...';
+            button.classList.add('active');
+            break;
+        case 'idle':
+        default:
+            indicator.classList.add('hidden');
+            indicator.textContent = '';
+            button.classList.remove('active');
+            break;
+    }
 }
 
 // ============================================================================

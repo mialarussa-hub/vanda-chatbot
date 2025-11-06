@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 800  # Ridotto per performance (risposte più concise)
     LLM_STREAM_ENABLED: bool = True
 
+    # TTS (Text-to-Speech) Configuration
+    OPENAI_TTS_VOICE: str = "nova"  # Voices: alloy, echo, fable, onyx, nova, shimmer
+    OPENAI_TTS_MODEL: str = "tts-1"  # Models: tts-1 (standard), tts-1-hd (high quality)
+    OPENAI_TTS_SPEED: float = 1.0  # Speech speed: 0.25 - 4.0
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
