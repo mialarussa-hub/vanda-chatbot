@@ -207,8 +207,8 @@ async def chat(request: ChatRequest):
                 logger.debug("Searching similar documents...")
                 documents = rag_service.search_similar_documents(
                     query_embedding=query_embedding,
-                    match_count=2,  # Top 2 documenti per performance
-                    match_threshold=0.65,  # Soglia più alta per qualità migliore
+                    match_count=5,  # Top 5 documenti per avere più contesto
+                    match_threshold=0.60,  # Soglia bilanciata per qualità e quantità
                     metadata_filter=request.rag_filters
                 )
 
