@@ -153,6 +153,21 @@ class MemoryManager:
                 logger.debug(f"No messages found for session {session_id}")
                 return []
 
+            # 🔍 DEBUG: Verifica session_id recuperati
+            retrieved_session_ids = set(row["session_id"] for row in response.data)
+            if len(retrieved_session_ids) > 1:
+                logger.error(
+                    f"❌ BUG DETECTED! Retrieved messages from {len(retrieved_session_ids)} different sessions: {retrieved_session_ids}"
+                )
+            elif len(retrieved_session_ids) == 1:
+                retrieved_id = list(retrieved_session_ids)[0]
+                if retrieved_id != str(session_id):
+                    logger.error(
+                        f"❌ BUG DETECTED! Requested session {session_id} but got session {retrieved_id}"
+                    )
+                else:
+                    logger.info(f"✅ All {len(response.data)} messages belong to session {session_id[:8]}...")
+
             # Converti in Message objects
             messages = []
             for row in response.data:
@@ -179,7 +194,7 @@ class MemoryManager:
                 messages.append(message)
 
             logger.info(
-                f"Retrieved {len(messages)} messages for session {session_id}"
+                f"Retrieved {len(messages)} messages for session {session_id[:8]}..."
             )
 
             return messages
