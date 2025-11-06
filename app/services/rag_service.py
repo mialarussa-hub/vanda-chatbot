@@ -11,6 +11,7 @@ Gestisce:
 from supabase import create_client, Client
 from app.config import settings
 from app.models.schemas import DocumentChunk, MetadataFilter, DocumentMetadata
+from app.services.config_service import get_config_service
 from typing import List, Optional, Dict, Any
 from loguru import logger
 import numpy as np
@@ -39,9 +40,9 @@ class RAGService:
             )
             self.table_name = settings.SUPABASE_TABLE_NAME
 
-            # Configurazioni RAG
-            self.default_match_count = settings.RAG_DEFAULT_MATCH_COUNT
-            self.default_match_threshold = settings.RAG_DEFAULT_MATCH_THRESHOLD
+            # Carica configurazioni dinamiche da DB (con fallback a settings)
+            self._load_dynamic_config()
+
             self.embedding_dimension = 1536  # OpenAI text-embedding-3-small
 
             logger.info(f"RAG Service initialized - Table: {self.table_name}")
@@ -49,6 +50,28 @@ class RAGService:
         except Exception as e:
             logger.error(f"Failed to initialize RAG Service: {e}")
             raise
+
+    def _load_dynamic_config(self):
+        """Carica configurazioni dinamiche da DB con fallback a settings"""
+        try:
+            config_service = get_config_service()
+
+            # Carica parametri RAG
+            rag_params = config_service.get_rag_parameters()
+            self.default_match_count = rag_params.get("match_count", settings.RAG_DEFAULT_MATCH_COUNT)
+            self.default_match_threshold = rag_params.get("match_threshold", settings.RAG_DEFAULT_MATCH_THRESHOLD)
+            self.max_context_length = rag_params.get("max_context_length", 8000)
+            self.enable_metadata_filters = rag_params.get("enable_metadata_filters", True)
+
+            logger.info("Dynamic RAG configuration loaded from DB")
+
+        except Exception as e:
+            logger.warning(f"Failed to load dynamic RAG config, using settings fallback: {e}")
+            # Fallback completo a settings
+            self.default_match_count = settings.RAG_DEFAULT_MATCH_COUNT
+            self.default_match_threshold = settings.RAG_DEFAULT_MATCH_THRESHOLD
+            self.max_context_length = 8000
+            self.enable_metadata_filters = True
 
     def search_similar_documents(
         self,

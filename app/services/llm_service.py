@@ -13,6 +13,7 @@ Gestisce:
 from openai import OpenAI, APIError, APITimeoutError, RateLimitError
 from app.config import settings
 from app.models.schemas import Message, MessageRole, DocumentChunk
+from app.services.config_service import get_config_service
 from typing import List, Optional, Dict, Any, Generator
 from loguru import logger
 import tiktoken
@@ -74,15 +75,8 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
         try:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-            # Configurazioni LLM da settings
-            self.model = settings.LLM_DEFAULT_MODEL
-            self.temperature = settings.LLM_DEFAULT_TEMPERATURE
-            self.max_tokens = settings.LLM_MAX_TOKENS
-            self.stream_enabled = settings.LLM_STREAM_ENABLED
-
-            # Configurazioni conversation history
-            self.max_history_messages = 10  # Mantieni ultimi 10 messaggi
-            self.max_context_tokens = 6000   # Max token per context (su ~8k disponibili)
+            # Carica configurazioni dinamiche da DB (con fallback a settings)
+            self._load_dynamic_config()
 
             # Inizializza tokenizer per conteggio token
             try:
@@ -100,6 +94,43 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
         except Exception as e:
             logger.error(f"Failed to initialize LLM Service: {e}")
             raise
+
+    def _load_dynamic_config(self):
+        """Carica configurazioni dinamiche da DB con fallback a settings"""
+        try:
+            config_service = get_config_service()
+
+            # Carica system prompt
+            self.system_prompt = config_service.get_system_prompt()
+            if not self.system_prompt:
+                # Fallback al SYSTEM_PROMPT hardcoded
+                self.system_prompt = self.SYSTEM_PROMPT
+                logger.warning("Using hardcoded SYSTEM_PROMPT as fallback")
+
+            # Carica parametri LLM
+            llm_params = config_service.get_llm_parameters()
+            self.model = llm_params.get("model", settings.LLM_DEFAULT_MODEL)
+            self.temperature = llm_params.get("temperature", settings.LLM_DEFAULT_TEMPERATURE)
+            self.max_tokens = llm_params.get("max_tokens", settings.LLM_MAX_TOKENS)
+            self.stream_enabled = llm_params.get("stream_enabled", settings.LLM_STREAM_ENABLED)
+
+            # Carica impostazioni avanzate
+            advanced = config_service.get_advanced_settings()
+            self.max_history_messages = advanced.get("max_history_messages", 10)
+            self.max_context_tokens = 6000  # Fisso per ora
+
+            logger.info("Dynamic configuration loaded from DB")
+
+        except Exception as e:
+            logger.warning(f"Failed to load dynamic config, using settings fallback: {e}")
+            # Fallback completo a settings
+            self.system_prompt = self.SYSTEM_PROMPT
+            self.model = settings.LLM_DEFAULT_MODEL
+            self.temperature = settings.LLM_DEFAULT_TEMPERATURE
+            self.max_tokens = settings.LLM_MAX_TOKENS
+            self.stream_enabled = settings.LLM_STREAM_ENABLED
+            self.max_history_messages = 10
+            self.max_context_tokens = 6000
 
     def generate_response(
         self,
@@ -340,10 +371,10 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
         """
         messages = []
 
-        # 1. System prompt principale
+        # 1. System prompt principale (dinamico da DB)
         messages.append({
             "role": "system",
-            "content": self.SYSTEM_PROMPT
+            "content": self.system_prompt
         })
 
         # 2. RAG context (se presente)
