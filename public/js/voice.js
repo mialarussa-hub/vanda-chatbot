@@ -187,7 +187,7 @@ const VoiceManager = {
         console.log(`🔊 Generating TTS for chunk: "${text.substring(0, 50)}..."`);
 
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/api/voice/tts-chunk`, {
+            const response = await fetch(`${CONFIG.API_URL}/api/voice/tts-chunk`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
