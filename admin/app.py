@@ -306,9 +306,9 @@ def show_rag_parameters(configs):
             match_count = st.number_input(
                 "Match Count",
                 min_value=1,
-                max_value=10,
+                max_value=50,
                 value=current_config.get("match_count", 3),
-                help="Numero di documenti da recuperare dalla ricerca vettoriale"
+                help="Numero di documenti da recuperare dalla ricerca vettoriale (max 50)"
             )
 
             match_threshold = st.slider(
