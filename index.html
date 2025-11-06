@@ -73,6 +73,9 @@
                     </div>
                 </div>
                 <div class="chat-actions">
+                    <button class="action-btn voice-btn" id="btn-voice-toggle" title="Modalità vocale" aria-label="Toggle voice mode">
+                        🎤
+                    </button>
                     <button class="action-btn" id="btn-clear" title="Nuova chat" aria-label="Nuova chat">
                         🔄
                     </button>
@@ -80,6 +83,7 @@
                         ⛶
                     </button>
                 </div>
+                <div class="voice-indicator hidden" id="voice-indicator"></div>
             </header>
 
             <!-- Messages Area -->
@@ -136,6 +140,7 @@
 
     <!-- JavaScript -->
     <script src="public/js/config.js"></script>
+    <script src="public/js/voice.js"></script>
     <script src="public/js/app.js"></script>
 </body>
 </html>

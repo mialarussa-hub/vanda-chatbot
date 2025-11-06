@@ -644,3 +644,93 @@ body {
     pointer-events: none;
     opacity: 0.6;
 }
+
+/* ============================================================================
+   VOICE UI
+   ============================================================================ */
+
+/* Voice Toggle Button */
+.voice-btn {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.voice-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.6);
+    }
+}
+
+/* Voice Indicator */
+.voice-indicator {
+    position: absolute;
+    top: 100%;
+    right: 20px;
+    margin-top: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.voice-indicator.listening {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    animation: breathe 2s ease-in-out infinite;
+}
+
+.voice-indicator.thinking {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.voice-indicator.speaking {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    animation: wave 1.5s ease-in-out infinite;
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+@keyframes wave {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(2px);
+    }
+}
+
+/* Responsive Voice UI */
+@media (max-width: 768px) {
+    .voice-indicator {
+        right: 10px;
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+}
