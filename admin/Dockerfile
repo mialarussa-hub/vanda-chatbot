@@ -1,20 +1,22 @@
 # Dockerfile for Vanda Chatbot Admin Panel (Streamlit)
+# Build context must be project root: vanda-chatbot/
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including curl for healthcheck
 RUN apt-get update && apt-get install -y \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy parent app directory (needed for config_service)
-COPY ../app /app/app
+COPY app /app/app
 
 # Copy admin files
-COPY requirements.txt .
-COPY app.py .
-COPY .streamlit .streamlit
+COPY admin/requirements.txt .
+COPY admin/app.py .
+COPY admin/.streamlit /app/.streamlit
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
