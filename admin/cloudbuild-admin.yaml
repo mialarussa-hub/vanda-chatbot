@@ -50,6 +50,7 @@ steps:
       - '--min-instances=0'
       - '--port=8501'
       # Secrets from Secret Manager
+      - '--set-secrets=OPENAI_API_KEY=openai-key:latest'
       - '--set-secrets=SUPABASE_URL=supabase-url:latest'
       - '--set-secrets=SUPABASE_KEY=supabase-key:latest'
     id: 'deploy-cloud-run'
