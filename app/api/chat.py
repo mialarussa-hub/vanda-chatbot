@@ -285,9 +285,10 @@ async def chat(request: ChatRequest):
                         await asyncio.sleep(0)  # Yield control, forza invio buffer
 
                         # Accumula risposta completa per salvare su DB
-                        # IMPORTANTE: Non facciamo strip() per preservare gli spazi!
+                        # IMPORTANTE: Preserviamo tutti gli spazi nel contenuto!
                         if chunk.startswith("data: "):
-                            content = chunk[6:-2]  # Rimuove "data: " all'inizio e "\n\n" alla fine
+                            # Rimuove "data: " all'inizio e newlines alla fine preservando spazi
+                            content = chunk[6:].rstrip('\n')
                             if content not in ["[DONE]", "[ERROR]"] and not content.startswith("[ERROR]"):
                                 full_response += content
 
