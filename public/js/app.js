@@ -71,16 +71,14 @@ function cacheDOMElements() {
 
 /**
  * Setup session ID
+ * Genera SEMPRE un nuovo session_id ad ogni caricamento pagina
  */
 function setupSession() {
-    AppState.sessionId = localStorage.getItem(CONFIG.SESSION_STORAGE_KEY);
+    // Genera nuovo UUID per ogni sessione (refresh = nuova conversazione)
+    AppState.sessionId = generateUUID();
+    localStorage.setItem(CONFIG.SESSION_STORAGE_KEY, AppState.sessionId);
 
-    if (!AppState.sessionId) {
-        AppState.sessionId = generateUUID();
-        localStorage.setItem(CONFIG.SESSION_STORAGE_KEY, AppState.sessionId);
-    }
-
-    console.log('Session ID:', AppState.sessionId);
+    console.log('New Session ID:', AppState.sessionId);
 }
 
 /**
