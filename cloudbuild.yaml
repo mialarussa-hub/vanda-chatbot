@@ -51,7 +51,6 @@ steps:
       - '--set-env-vars=ENV=production'
       - '--set-env-vars=LOG_LEVEL=INFO'
       - '--set-env-vars=SUPABASE_TABLE_NAME=documents'
-      - '--set-env-vars=ALLOWED_ORIGINS=["https://www.agentika.io","https://agentika.io"]'
       - '--set-env-vars=RAG_DEFAULT_MATCH_COUNT=3'
       - '--set-env-vars=RAG_DEFAULT_MATCH_THRESHOLD=0.60'
       - '--set-env-vars=RAG_MAX_CONTEXT_LENGTH=8000'
