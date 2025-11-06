@@ -1,0 +1,37 @@
+# ============================================================================
+# VANDA Chatbot - Python Dependencies
+# ============================================================================
+# Install: pip install -r requirements.txt
+# Update: pip install --upgrade -r requirements.txt
+# ============================================================================
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# OpenAI & LLM
+openai==1.3.5
+tiktoken==0.5.1              # Token counting per conversation history
+
+# Supabase & Database
+supabase==2.0.3
+postgrest==0.13.2            # Supabase client dependency
+
+# Data Processing
+numpy==1.24.3
+
+# Configuration & Environment
+python-dotenv==1.0.0
+pydantic==2.4.2
+pydantic-settings==2.0.3
+
+# HTTP Client (versione compatibile con openai e supabase)
+httpx==0.24.1
+
+# Logging
+loguru==0.7.2
+
+# Testing (opzionale, per sviluppo)
+# pytest==7.4.3
+# pytest-asyncio==0.21.1

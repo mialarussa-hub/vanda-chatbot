@@ -1,0 +1,177 @@
+================================================================================
+ISTRUZIONI UPLOAD FTP - VANDA CHATBOT
+================================================================================
+
+STEP 1: CONNESSIONE FTP
+------------------------
+Connettiti al tuo server FTP con i tuoi dati di accesso.
+
+
+STEP 2: CREAZIONE DIRECTORY
+----------------------------
+Sul server, crea la seguente struttura (se non esiste già):
+
+/public_html/vanda-chatbot/
+/public_html/vanda-chatbot/css/
+/public_html/vanda-chatbot/js/
+
+
+STEP 3: UPLOAD FILES
+--------------------
+Carica i seguenti file nelle rispettive directory:
+
+DIRECTORY ROOT (/public_html/vanda-chatbot/):
+✓ index.html
+
+DIRECTORY CSS (/public_html/vanda-chatbot/css/):
+✓ style.css
+
+DIRECTORY JS (/public_html/vanda-chatbot/js/):
+✓ config.js
+✓ app.js
+
+
+STEP 4: PERMESSI FILE
+---------------------
+Imposta i permessi dei file a 644 (rw-r--r--):
+- index.html → 644
+- css/style.css → 644
+- js/config.js → 644
+- js/app.js → 644
+
+Imposta i permessi delle directory a 755 (rwxr-xr-x):
+- vanda-chatbot/ → 755
+- vanda-chatbot/css/ → 755
+- vanda-chatbot/js/ → 755
+
+
+STEP 5: VERIFICA
+----------------
+Apri il browser e vai a:
+https://www.agentika.io/vanda-chatbot/
+
+Dovresti vedere l'interfaccia del chatbot VANDA con:
+✓ Welcome screen con logo 🏠
+✓ Sidebar sulla sinistra (su desktop)
+✓ Area chat centrale
+✓ Input per scrivere messaggi
+
+
+STEP 6: TEST FUNZIONALITA'
+---------------------------
+1. Clicca su uno dei quick action button
+2. Invia un messaggio di test
+3. Verifica che arrivi la risposta streaming dal chatbot
+4. Controlla che il contatore messaggi si aggiorni
+
+
+TROUBLESHOOTING
+================================================================================
+
+❌ PROBLEMA: Pagina bianca o errori 404
+✅ SOLUZIONE:
+   - Verifica che index.html sia nella directory corretta
+   - Controlla i permessi dei file (devono essere leggibili)
+   - Verifica che il nome del file sia esattamente "index.html" (minuscolo)
+
+
+❌ PROBLEMA: Stili CSS non caricati (pagina senza colori/grafica)
+✅ SOLUZIONE:
+   - Verifica che style.css sia in vanda-chatbot/css/style.css
+   - Controlla i permessi del file CSS (644)
+   - Apri DevTools (F12) → Console → cerca errori di caricamento
+   - Prova ad accedere direttamente a: www.agentika.io/vanda-chatbot/css/style.css
+
+
+❌ PROBLEMA: JavaScript non funziona (bottoni non rispondono)
+✅ SOLUZIONE:
+   - Verifica che config.js e app.js siano in vanda-chatbot/js/
+   - Controlla i permessi dei file JS (644)
+   - Apri DevTools (F12) → Console → cerca errori JavaScript
+
+
+❌ PROBLEMA: Errore CORS quando invii messaggi
+✅ SOLUZIONE:
+   - Questo significa che il backend su Cloud Run non accetta richieste dal tuo dominio
+   - Devi configurare CORS sul backend con questo comando:
+
+   gcloud run services update vanda-chatbot --region europe-west1 \
+     --update-env-vars "ALLOWED_ORIGINS=https://www.agentika.io,https://agentika.io"
+
+
+❌ PROBLEMA: Chat non riceve risposte
+✅ SOLUZIONE:
+   - Apri DevTools (F12) → Network → invia un messaggio
+   - Cerca la richiesta POST a /api/chat
+   - Se vedi errori 401/403 → problema di autenticazione API
+   - Se vedi errori 500 → problema backend
+   - Se vedi errori CORS → vedi soluzione sopra
+
+
+STRUTTURA FINALE
+================================================================================
+
+www.agentika.io/vanda-chatbot/
+├── index.html              ← Pagina principale
+├── css/
+│   └── style.css          ← Stili e design
+└── js/
+    ├── config.js          ← Configurazione API
+    └── app.js             ← Logica applicazione
+
+
+API ENDPOINT
+================================================================================
+Backend: https://vanda-chatbot-515064966632.europe-west1.run.app
+Endpoint chat: /api/chat
+Endpoint health: /health
+
+
+MODIFICHE FUTURE
+================================================================================
+
+Se vuoi modificare qualcosa:
+
+1. COLORI E STILI:
+   - Modifica public/css/style.css
+   - Cambia le variabili CSS in :root (linee 16-56)
+   - Ricarica il file via FTP
+
+2. TESTI E CONTENUTI:
+   - Modifica public/index.html
+   - Ricarica il file via FTP
+
+3. CONFIGURAZIONE API:
+   - Modifica public/js/config.js
+   - Ricarica il file via FTP
+
+4. LOGICA APPLICAZIONE:
+   - Modifica public/js/app.js
+   - Ricarica il file via FTP
+
+
+SUPPORTO
+================================================================================
+
+Se hai problemi:
+1. Apri DevTools del browser (F12)
+2. Vai su Console e Network
+3. Riproduci l'errore
+4. Copia gli errori che vedi
+5. Fammi sapere cosa vedi
+
+
+NOTE
+================================================================================
+
+✓ La sessione utente viene salvata in localStorage del browser
+✓ Ogni utente ha un session_id univoco generato automaticamente
+✓ Le conversazioni vengono salvate su Supabase
+✓ Lo streaming SSE funziona con tutti i browser moderni
+✓ Il design è responsive (funziona su mobile)
+✓ Non serve database locale, tutto passa tramite API
+
+
+================================================================================
+Buon upload! 🚀
+================================================================================

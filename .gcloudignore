@@ -1,0 +1,98 @@
+# ============================================================================
+# .gcloudignore - Escludi file dal deploy Cloud Run
+# ============================================================================
+# Simile a .dockerignore, usato da `gcloud run deploy --source .`
+# ============================================================================
+
+# Environment & Secrets (IMPORTANTE!)
+.env
+.env.*
+*.env
+*.pem
+*.key
+secrets/
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing & Development
+test_*.py
+*_test.py
+pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-*
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README.md
+docs/
+CHANGELOG.md
+LICENSE
+examples/
+
+# Docker
+# Dockerfile - NECESSARIO per Cloud Run build
+docker-compose.yml
+# .dockerignore - NECESSARIO per Cloud Run build
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Misc
+*.log
+*.sql
+*.sqlite
+.cache/
+temp/
+tmp/
+*.tmp
+node_modules/
+package*.json
+
+# State files
+STATO_PROGETTO.md
+TODO.md
+NOTES.md

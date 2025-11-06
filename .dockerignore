@@ -1,0 +1,93 @@
+# ============================================================================
+# .dockerignore - Escludi file dal Docker build
+# ============================================================================
+# Riduce dimensione immagine e velocizza build
+# ============================================================================
+
+# Environment & Secrets
+.env
+.env.*
+*.env
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+test_*.py
+*_test.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README.md
+docs/
+CHANGELOG.md
+LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Cloud
+.gcloudignore
+cloudbuild.yaml
+kubernetes/
+
+# Misc
+*.log
+*.sql
+*.sqlite
+.cache/
+temp/
+tmp/
+*.tmp
