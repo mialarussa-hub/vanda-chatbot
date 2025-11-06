@@ -476,3 +476,60 @@ async def chat_stats():
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
+
+
+@router.post(
+    "/chat/reload-config",
+    summary="Reload configurazioni",
+    description="Ricarica le configurazioni dinamiche dal database"
+)
+async def reload_config():
+    """
+    Ricarica le configurazioni dinamiche dal database.
+
+    Questo endpoint:
+    1. Svuota la cache del ConfigService
+    2. Ricarica le configurazioni di LLMService
+    3. Ricarica le configurazioni di RAGService
+
+    Returns:
+        JSONResponse con status del reload
+    """
+    try:
+        logger.info("Reload config requested")
+
+        results = {
+            "llm_service": False,
+            "rag_service": False
+        }
+
+        # Reload LLM Service
+        if llm_service:
+            results["llm_service"] = llm_service.reload_config()
+
+        # Reload RAG Service
+        if rag_service:
+            results["rag_service"] = rag_service.reload_config()
+
+        success = all(results.values())
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK if success else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "success" if success else "partial_failure",
+                "services_reloaded": results,
+                "message": "Configurations reloaded successfully" if success else "Some services failed to reload",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Reload config error: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )

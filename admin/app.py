@@ -7,11 +7,16 @@ import sys
 import os
 from datetime import datetime
 import json
+import httpx
+from typing import Optional, Dict, Any
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.services.config_service import get_config_service
+
+# Chatbot URL for webhook calls
+CHATBOT_URL = os.getenv("CHATBOT_URL", "https://vanda-chatbot-ddslq3mmyq-ew.a.run.app")
 
 # Page config
 st.set_page_config(
@@ -86,6 +91,51 @@ def load_configs():
     except Exception as e:
         st.error(f"❌ Errore caricamento configurazioni: {e}")
         return {}
+
+
+def call_reload_webhook() -> Dict[str, Any]:
+    """
+    Chiama il webhook di reload sul chatbot per applicare le nuove configurazioni.
+
+    Returns:
+        Dict con status, message e success (bool)
+    """
+    try:
+        # Timeout di 5 secondi per non bloccare l'UI
+        with httpx.Client(timeout=5.0) as client:
+            response = client.post(f"{CHATBOT_URL}/api/chat/reload-config")
+
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "success": True,
+                    "message": "✅ Configurazioni applicate al chatbot con successo!",
+                    "details": data
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"⚠️ Chatbot ha risposto con errore (status {response.status_code})",
+                    "details": None
+                }
+    except httpx.TimeoutException:
+        return {
+            "success": False,
+            "message": "⚠️ Timeout: chatbot non ha risposto entro 5 secondi",
+            "details": None
+        }
+    except httpx.ConnectError:
+        return {
+            "success": False,
+            "message": "⚠️ Impossibile connettersi al chatbot. Configurazioni salvate su DB ma non applicate.",
+            "details": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"⚠️ Errore chiamata webhook: {str(e)}",
+            "details": None
+        }
 
 
 def main():
@@ -206,8 +256,17 @@ def show_system_prompt(configs):
         if st.button("💾 Salva", use_container_width=True):
             new_config = {"prompt": new_prompt}
             if st.session_state.config_service.update_config("system_prompt", new_config):
-                st.markdown('<div class="success-box">✅ System prompt aggiornato con successo!</div>', unsafe_allow_html=True)
+                st.markdown('<div class="success-box">✅ System prompt salvato su database!</div>', unsafe_allow_html=True)
                 st.session_state.config_service.clear_cache()
+
+                # Chiama webhook per applicare le modifiche
+                with st.spinner("⏳ Applicando configurazioni al chatbot..."):
+                    webhook_result = call_reload_webhook()
+                    if webhook_result["success"]:
+                        st.markdown(f'<div class="success-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="error-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+
                 st.rerun()
             else:
                 st.markdown('<div class="error-box">❌ Errore durante il salvataggio</div>', unsafe_allow_html=True)
@@ -219,6 +278,15 @@ def show_system_prompt(configs):
             if st.session_state.config_service.update_config("system_prompt", new_config):
                 st.markdown('<div class="success-box">✅ Reset completato!</div>', unsafe_allow_html=True)
                 st.session_state.config_service.clear_cache()
+
+                # Chiama webhook per applicare le modifiche
+                with st.spinner("⏳ Applicando configurazioni al chatbot..."):
+                    webhook_result = call_reload_webhook()
+                    if webhook_result["success"]:
+                        st.markdown(f'<div class="success-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="error-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+
                 st.rerun()
 
 
@@ -280,8 +348,17 @@ def show_rag_parameters(configs):
             }
 
             if st.session_state.config_service.update_config("rag_parameters", new_config):
-                st.markdown('<div class="success-box">✅ Parametri RAG aggiornati!</div>', unsafe_allow_html=True)
+                st.markdown('<div class="success-box">✅ Parametri RAG salvati su database!</div>', unsafe_allow_html=True)
                 st.session_state.config_service.clear_cache()
+
+                # Chiama webhook per applicare le modifiche
+                with st.spinner("⏳ Applicando configurazioni al chatbot..."):
+                    webhook_result = call_reload_webhook()
+                    if webhook_result["success"]:
+                        st.markdown(f'<div class="success-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="error-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+
                 st.rerun()
             else:
                 st.markdown('<div class="error-box">❌ Errore durante il salvataggio</div>', unsafe_allow_html=True)
@@ -344,8 +421,17 @@ def show_llm_parameters(configs):
             }
 
             if st.session_state.config_service.update_config("llm_parameters", new_config):
-                st.markdown('<div class="success-box">✅ Parametri LLM aggiornati!</div>', unsafe_allow_html=True)
+                st.markdown('<div class="success-box">✅ Parametri LLM salvati su database!</div>', unsafe_allow_html=True)
                 st.session_state.config_service.clear_cache()
+
+                # Chiama webhook per applicare le modifiche
+                with st.spinner("⏳ Applicando configurazioni al chatbot..."):
+                    webhook_result = call_reload_webhook()
+                    if webhook_result["success"]:
+                        st.markdown(f'<div class="success-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="error-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+
                 st.rerun()
             else:
                 st.markdown('<div class="error-box">❌ Errore durante il salvataggio</div>', unsafe_allow_html=True)
@@ -395,8 +481,17 @@ def show_advanced_settings(configs):
             }
 
             if st.session_state.config_service.update_config("advanced_settings", new_config):
-                st.markdown('<div class="success-box">✅ Impostazioni avanzate aggiornate!</div>', unsafe_allow_html=True)
+                st.markdown('<div class="success-box">✅ Impostazioni avanzate salvate su database!</div>', unsafe_allow_html=True)
                 st.session_state.config_service.clear_cache()
+
+                # Chiama webhook per applicare le modifiche
+                with st.spinner("⏳ Applicando configurazioni al chatbot..."):
+                    webhook_result = call_reload_webhook()
+                    if webhook_result["success"]:
+                        st.markdown(f'<div class="success-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="error-box">{webhook_result["message"]}</div>', unsafe_allow_html=True)
+
                 st.rerun()
             else:
                 st.markdown('<div class="error-box">❌ Errore durante il salvataggio</div>', unsafe_allow_html=True)

@@ -73,6 +73,33 @@ class RAGService:
             self.max_context_length = 8000
             self.enable_metadata_filters = True
 
+    def reload_config(self) -> bool:
+        """
+        Ricarica le configurazioni dal database.
+
+        Returns:
+            True se ricaricamento riuscito, False altrimenti
+        """
+        try:
+            logger.info("Reloading RAG configuration from database...")
+
+            # Svuota cache
+            config_service = get_config_service()
+            config_service.clear_cache()
+
+            # Ricarica config
+            self._load_dynamic_config()
+
+            logger.info(
+                f"RAG configuration reloaded - Match count: {self.default_match_count}, "
+                f"Threshold: {self.default_match_threshold}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to reload RAG configuration: {e}")
+            return False
+
     def search_similar_documents(
         self,
         query_embedding: List[float],

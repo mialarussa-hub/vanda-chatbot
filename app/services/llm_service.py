@@ -132,6 +132,50 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
             self.max_history_messages = 10
             self.max_context_tokens = 6000
 
+    def reload_config(self) -> bool:
+        """
+        Ricarica le configurazioni dal database.
+
+        Questo metodo:
+        1. Svuota la cache del ConfigService
+        2. Ricarica tutte le configurazioni
+        3. Aggiorna il tokenizer se il modello è cambiato
+
+        Returns:
+            True se ricaricamento riuscito, False altrimenti
+        """
+        try:
+            logger.info("Reloading LLM configuration from database...")
+
+            # Svuota cache
+            config_service = get_config_service()
+            config_service.clear_cache()
+
+            # Salva modello corrente per confronto
+            old_model = self.model
+
+            # Ricarica config
+            self._load_dynamic_config()
+
+            # Aggiorna tokenizer se modello cambiato
+            if old_model != self.model:
+                try:
+                    self.tokenizer = tiktoken.encoding_for_model(self.model)
+                    logger.info(f"Tokenizer updated for new model: {self.model}")
+                except KeyError:
+                    logger.warning(f"Model {self.model} not in tiktoken, using cl100k_base")
+                    self.tokenizer = tiktoken.get_encoding("cl100k_base")
+
+            logger.info(
+                f"LLM configuration reloaded - Model: {self.model}, "
+                f"Temp: {self.temperature}, Max tokens: {self.max_tokens}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to reload LLM configuration: {e}")
+            return False
+
     def generate_response(
         self,
         user_message: str,

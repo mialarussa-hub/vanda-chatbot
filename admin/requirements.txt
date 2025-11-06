@@ -8,7 +8,7 @@ python-dotenv==1.0.0
 # Dependencies for app.services imports (must match main requirements.txt)
 pydantic==2.4.2
 pydantic-settings==2.0.3
-httpx==0.24.1
+httpx==0.24.1  # Also used for webhook calls to chatbot
 numpy==1.24.3
 openai==1.3.5
 tiktoken==0.5.1
