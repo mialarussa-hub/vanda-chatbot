@@ -409,24 +409,53 @@ class RAGService:
             context_parts = []
 
             for i, doc in enumerate(documents, 1):
-                # Estrai metadata utili
-                heading = doc.metadata.heading or "Senza titolo"
-                category = doc.metadata.category or "N/A"
-                client_type = doc.metadata.client_type or "N/A"
-                tags = doc.metadata.tags or ""
-
-                # Costruisci sezione documento
+                # Costruisci sezione documento con TUTTI i metadati rilevanti
                 doc_section = f"[DOCUMENTO {i}]"
 
                 if include_metadata:
-                    doc_section += f"\nTitolo: {heading}"
-                    doc_section += f"\nCategoria: {category}"
+                    # Metadati principali
+                    if doc.metadata.heading:
+                        doc_section += f"\nTitolo: {doc.metadata.heading}"
 
-                    if client_type != "N/A":
-                        doc_section += f"\nTipo Cliente: {client_type}"
+                    if doc.metadata.document_type:
+                        doc_section += f"\nTipo: {doc.metadata.document_type}"
 
-                    if tags:
-                        doc_section += f"\nTags: {tags}"
+                    if doc.metadata.category:
+                        doc_section += f"\nCategoria: {doc.metadata.category}"
+
+                    if doc.metadata.subcategory:
+                        doc_section += f"\nSottocategoria: {doc.metadata.subcategory}"
+
+                    # Informazioni cliente/brand
+                    if doc.metadata.client:
+                        doc_section += f"\nCliente: {doc.metadata.client}"
+
+                    if doc.metadata.brand:
+                        doc_section += f"\nBrand: {doc.metadata.brand}"
+
+                    if doc.metadata.client_type:
+                        doc_section += f"\nTipologia: {doc.metadata.client_type}"
+
+                    # URL (CRITICO per evitare allucinazioni di link!)
+                    if doc.metadata.url:
+                        doc_section += f"\nURL: {doc.metadata.url}"
+
+                    # Priorità e visibilità (per sistema di ordinamento)
+                    if doc.metadata.priority is not None:
+                        doc_section += f"\nPriority: {doc.metadata.priority}"
+
+                    if doc.metadata.featured is not None:
+                        doc_section += f"\nFeatured: {'Sì' if doc.metadata.featured else 'No'}"
+
+                    if doc.metadata.visibility:
+                        doc_section += f"\nVisibility: {doc.metadata.visibility}"
+
+                    if doc.metadata.project_scale:
+                        doc_section += f"\nScale: {doc.metadata.project_scale}"
+
+                    # Tags e similarity
+                    if doc.metadata.tags:
+                        doc_section += f"\nTags: {doc.metadata.tags}"
 
                     if doc.similarity:
                         doc_section += f"\nRilevanza: {doc.similarity:.2%}"
