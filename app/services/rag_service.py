@@ -214,6 +214,13 @@ class RAGService:
             if results:
                 similarities = [r['similarity'] for r in results]
                 logger.info(f"📊 Similarity range: {min(similarities):.3f} - {max(similarities):.3f}")
+
+                # Log i primi 5 documenti per vedere cosa viene trovato
+                logger.info("🔍 Top 5 documents before sorting:")
+                for idx, r in enumerate(results[:5], 1):
+                    heading = r['metadata'].get('heading', 'NO TITLE')
+                    priority = r['metadata'].get('priority', 0)
+                    logger.info(f"  [{idx}] {heading} | Priority: {priority} | Sim: {r['similarity']:.3f}")
             else:
                 logger.warning(f"⚠️ NO RESULTS after threshold filter! Try lowering threshold from {match_threshold}")
 
@@ -229,6 +236,15 @@ class RAGService:
             results = results[:match_count]
 
             logger.info(f"🎯 Final results after sorting and limiting to {match_count}: {len(results)} documents")
+
+            # DEBUG: Log titoli e priority dei documenti finali
+            if results:
+                logger.info("📋 Final documents being sent to LLM:")
+                for idx, r in enumerate(results, 1):
+                    heading = r['metadata'].get('heading', 'NO TITLE')
+                    priority = r['metadata'].get('priority', 0)
+                    similarity = r['similarity']
+                    logger.info(f"  [{idx}] {heading} | Priority: {priority} | Similarity: {similarity:.3f}")
 
             # Converti in DocumentChunk Pydantic models
             chunks = []
