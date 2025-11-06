@@ -170,10 +170,14 @@ class RAGService:
             response = query.execute()
 
             if not response.data:
-                logger.warning("No documents found in database matching filters")
+                logger.error("❌ NO DOCUMENTS FOUND IN DATABASE! Check table name and data.")
                 return []
 
-            logger.info(f"Retrieved {len(response.data)} documents from database")
+            logger.info(f"✅ Retrieved {len(response.data)} documents from database")
+
+            # DEBUG: Verifica se embeddings sono presenti
+            docs_with_embedding = sum(1 for doc in response.data if doc.get('embedding'))
+            logger.info(f"📊 Documents with embedding: {docs_with_embedding}/{len(response.data)}")
 
             # Calcola similarity per ogni documento
             results = []
@@ -205,6 +209,14 @@ class RAGService:
                     logger.error(f"Error processing document {doc.get('id')}: {e}")
                     continue
 
+            # DEBUG: Log dei risultati filtrati per threshold
+            logger.info(f"📈 Results after threshold filter ({match_threshold}): {len(results)} documents")
+            if results:
+                similarities = [r['similarity'] for r in results]
+                logger.info(f"📊 Similarity range: {min(similarities):.3f} - {max(similarities):.3f}")
+            else:
+                logger.warning(f"⚠️ NO RESULTS after threshold filter! Try lowering threshold from {match_threshold}")
+
             # Ordina per similarity (decrescente), poi per priority (decrescente)
             # A parità di similarity, mostra prima i progetti con priority alta
             results.sort(
@@ -215,6 +227,8 @@ class RAGService:
                 reverse=True
             )
             results = results[:match_count]
+
+            logger.info(f"🎯 Final results after sorting and limiting to {match_count}: {len(results)} documents")
 
             # Converti in DocumentChunk Pydantic models
             chunks = []
