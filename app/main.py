@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import chat, voice
 
+# Force rebuild to include voice router
 app = FastAPI(title="VANDA RAG Chatbot", version="1.0.0")
 
 # CORS configuration per www.agentika.io
