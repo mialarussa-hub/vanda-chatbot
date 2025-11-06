@@ -1,10 +1,11 @@
 # Streamlit Admin Panel Dependencies
 streamlit==1.31.0
-supabase==2.3.0
+supabase==2.0.3
+postgrest==0.13.2
 loguru==0.7.2
 python-dotenv==1.0.0
 
-# Dependencies for app.services imports
+# Dependencies for app.services imports (must match main requirements.txt)
 pydantic==2.4.2
 pydantic-settings==2.0.3
 httpx==0.24.1
