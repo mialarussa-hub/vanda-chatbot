@@ -24,6 +24,7 @@ from app.services.rag_service import rag_service
 from app.services.llm_service import llm_service
 from app.services.memory_manager import memory_manager
 from app.services.embedding_service import embedding_service
+from app.services.intent_classifier import intent_classifier
 from app.models.schemas import MessageRole, MetadataFilter
 
 
@@ -197,6 +198,15 @@ async def chat(request: ChatRequest):
 
         if request.use_rag:
             try:
+                # Auto-detect category intent se non fornito manualmente
+                if not request.rag_filters:
+                    detected_category = intent_classifier.detect_category(request.message)
+                    if detected_category:
+                        request.rag_filters = MetadataFilter(category=detected_category)
+                        logger.info(f"🎯 Auto-detected category filter: {detected_category}")
+                else:
+                    logger.info(f"📌 Using manual category filter: {request.rag_filters.category}")
+
                 # Genera embedding della query
                 logger.debug("Generating embedding for query...")
                 query_embedding = embedding_service.get_embedding(
@@ -424,7 +434,8 @@ async def chat_health():
             "rag_service": rag_service is not None,
             "llm_service": llm_service is not None,
             "memory_manager": memory_manager is not None,
-            "embedding_service": embedding_service is not None
+            "embedding_service": embedding_service is not None,
+            "intent_classifier": intent_classifier is not None
         }
 
         all_healthy = all(services_status.values())
