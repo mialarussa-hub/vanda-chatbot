@@ -181,9 +181,14 @@ async function sendMessageToAPI(message) {
  * Gestisce l'invio del messaggio
  */
 async function handleSendMessage() {
+    console.log('🚀 handleSendMessage called');
+
     const text = DOM.userInput.value.trim();
 
-    if (!text || AppState.isLoading) return;
+    if (!text || AppState.isLoading) {
+        console.log('⚠️ handleSendMessage aborted - empty or loading');
+        return;
+    }
 
     // Valida lunghezza
     if (text.length > CONFIG.MAX_MESSAGE_LENGTH) {
@@ -226,6 +231,8 @@ async function handleSendMessage() {
  * Gestisce risposta streaming
  */
 async function handleStreamResponse(response) {
+    console.log('🌊 handleStreamResponse called');
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let assistantMessage = '';
@@ -248,9 +255,24 @@ async function handleStreamResponse(response) {
                 const totalTime = performance.now() - startTime;
                 console.log(`✅ Stream completed - Chunks: ${chunkCount}, Duration: ${totalTime.toFixed(2)}ms`);
 
-                // Rimuovi cursore streaming
+                // DEBUG: Controlla URL nell'assistantMessage FINALE (dopo accumulo streaming)
+                const streamUrlMatches = assistantMessage.match(/https:\/\/www\.vandadesigners\.com\/[^\s\)]+/g);
+                if (streamUrlMatches) {
+                    console.log('🔗 URLs trovati nel messaggio FINALE dopo streaming:', streamUrlMatches.length);
+                    streamUrlMatches.forEach((url, idx) => {
+                        if (url.includes('ARCHITETTURA') || url.includes('RISTRUTTURAZIONE')) {
+                            console.log(`  [${idx}] ${url}`);
+                        }
+                    });
+                }
+
+                // Rimuovi cursore streaming e finalizza con markdown (con timeout per stabilità DOM)
                 if (messageElement) {
                     removeStreamingCursor(messageElement);
+                    // Timeout per permettere al DOM di stabilizzarsi dopo lo streaming
+                    setTimeout(() => {
+                        finalizeMessage(messageElement);
+                    }, 20);
                 }
 
                 // Notify VoiceManager che streaming è finito
@@ -299,6 +321,10 @@ async function handleStreamResponse(response) {
                     if (contentTrimmed === '[DONE]') {
                         if (messageElement) {
                             removeStreamingCursor(messageElement);
+                            // Timeout per permettere al DOM di stabilizzarsi
+                            setTimeout(() => {
+                                finalizeMessage(messageElement);
+                            }, 20);
                         }
                         return;
                     }
@@ -419,6 +445,8 @@ function handleToggleFullscreen() {
  * Aggiungi messaggio alla chat
  */
 function addMessage(role, content, isStreaming = false) {
+    console.log(`📝 addMessage called - role: ${role}, streaming: ${isStreaming}, content length: ${content.length}`);
+
     // Increment counter
     if (role === 'user' || role === 'assistant') {
         AppState.messageCount++;
@@ -498,6 +526,89 @@ function removeStreamingCursor(messageElement) {
     const cursor = messageElement.querySelector('.streaming-cursor');
     if (cursor) {
         cursor.remove();
+    }
+}
+
+/**
+ * Finalizza messaggio con parsing markdown
+ * Chiamato DOPO lo streaming per renderizzare markdown
+ */
+function finalizeMessage(messageElement) {
+    console.log('🎨 finalizeMessage called', messageElement);
+
+    if (!messageElement) {
+        console.log('⚠️ finalizeMessage: no messageElement');
+        return;
+    }
+
+    // Protezione anti-duplicazione: controlla se già parsato
+    if (messageElement.dataset.markdownParsed === 'true') {
+        console.log('⚠️ Message already parsed, skipping');
+        return;
+    }
+
+    const contentDiv = messageElement.querySelector('.message-content');
+    if (!contentDiv) return;
+
+    // 1. Rimuovi cursore streaming (se esiste)
+    const cursor = contentDiv.querySelector('.streaming-cursor');
+    if (cursor) {
+        cursor.remove();
+        console.log('🗑️ Streaming cursor removed');
+    }
+
+    // 2. Prendi SOLO il contenuto text (esclude HTML già parsato)
+    const plainText = contentDiv.textContent.trim();
+
+    console.log('📝 Plain text length:', plainText.length);
+
+    // DEBUG: Cerca URL nelle immagini per tracciare corruzione
+    const urlMatches = plainText.match(/https:\/\/www\.vandadesigners\.com\/[^\s\)]+/g);
+    if (urlMatches) {
+        console.log('🔗 URLs trovati nel plainText PRIMA del parse:', urlMatches.length);
+        urlMatches.forEach((url, idx) => {
+            if (url.includes('ARCHITETTURA') || url.includes('RISTRUTTURAZIONE')) {
+                console.log(`  [${idx}] ${url}`);
+            }
+        });
+    }
+
+    try {
+        // 3. Configura marked per sicurezza
+        marked.setOptions({
+            breaks: true,           // Converti \n in <br>
+            gfm: true,             // GitHub Flavored Markdown
+            headerIds: false,      // No IDs negli headers
+            mangle: false,         // No obfuscation email
+            sanitize: false        // Non sanitizza (lo facciamo noi se necessario)
+        });
+
+        // 4. Parse markdown to HTML
+        const htmlContent = marked.parse(plainText);
+
+        // DEBUG: Controlla URL nell'HTML dopo il parse
+        const htmlUrlMatches = htmlContent.match(/src="https:\/\/www\.vandadesigners\.com\/[^"]+"/g);
+        if (htmlUrlMatches) {
+            console.log('🔗 URLs trovati nell\'HTML DOPO il parse:', htmlUrlMatches.length);
+            htmlUrlMatches.forEach((url, idx) => {
+                if (url.includes('ARCHITETTURA') || url.includes('RISTRUTTURAZIONE')) {
+                    console.log(`  [${idx}] ${url}`);
+                }
+            });
+        }
+
+        // 5. PULISCI COMPLETAMENTE e sostituisci con HTML renderizzato
+        contentDiv.innerHTML = '';  // Svuota tutto
+        contentDiv.innerHTML = htmlContent;  // Inserisci HTML parsed
+
+        // 6. Marca come parsato per evitare duplicazioni
+        messageElement.dataset.markdownParsed = 'true';
+
+        console.log('✨ Markdown parsed successfully');
+    } catch (error) {
+        console.error('❌ Markdown parsing error:', error);
+        // In caso di errore, ripristina il plain text
+        contentDiv.textContent = plainText;
     }
 }
 

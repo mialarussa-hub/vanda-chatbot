@@ -20,6 +20,7 @@ import sys
 
 from app.config import settings
 from app.api.chat import router as chat_router
+from app.api.voice import router as voice_router
 
 
 # ============================================================================
@@ -145,6 +146,9 @@ app.add_middleware(
 # Chat API
 app.include_router(chat_router, prefix="/api", tags=["chat"])
 
+# Voice API
+app.include_router(voice_router, prefix="/api", tags=["voice"])
+
 
 # ============================================================================
 # ROOT ENDPOINTS
@@ -163,6 +167,7 @@ async def root():
         "redoc": "/redoc",
         "endpoints": {
             "chat": "POST /api/chat",
+            "voice_tts": "POST /api/voice/tts-chunk",
             "health": "GET /health",
             "chat_health": "GET /api/chat/health",
             "stats": "GET /api/chat/stats"
@@ -237,6 +242,7 @@ async def not_found_handler(request, exc):
                 "GET /health",
                 "GET /docs",
                 "POST /api/chat",
+                "POST /api/voice/tts-chunk",
                 "GET /api/chat/health",
                 "GET /api/chat/stats"
             ]

@@ -423,6 +423,167 @@ body {
     color: white;
 }
 
+/* ============================================================================
+   MARKDOWN CONTENT STYLING
+   ============================================================================ */
+
+/* Paragrafi */
+.message-content p {
+    margin: 0 0 12px 0;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Liste */
+.message-content ul,
+.message-content ol {
+    margin: 8px 0 12px 0;
+    padding-left: 24px;
+}
+
+.message-content li {
+    margin: 4px 0;
+    line-height: 1.6;
+}
+
+.message-content ul {
+    list-style-type: disc;
+}
+
+.message-content ol {
+    list-style-type: decimal;
+}
+
+/* Liste annidate */
+.message-content ul ul,
+.message-content ol ul {
+    list-style-type: circle;
+}
+
+/* Grassetto e Italic */
+.message-content strong,
+.message-content b {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.message-content em,
+.message-content i {
+    font-style: italic;
+}
+
+/* Link */
+.message-content a {
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: var(--transition-fast);
+}
+
+.message-content a:hover {
+    border-bottom-color: var(--primary-color);
+    opacity: 0.8;
+}
+
+/* Link nei messaggi utente (su sfondo gradient) */
+.message-user .message-content a {
+    color: white;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.message-user .message-content a:hover {
+    border-bottom-color: white;
+}
+
+/* Immagini */
+.message-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    margin: 12px 0;
+    box-shadow: var(--shadow-sm);
+    display: block;
+}
+
+/* Immagini con link */
+.message-content a img {
+    transition: var(--transition-fast);
+}
+
+.message-content a:hover img {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+/* Titoli (se necessari) */
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4 {
+    margin: 16px 0 8px 0;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+}
+
+.message-content h1 { font-size: 1.4em; }
+.message-content h2 { font-size: 1.3em; }
+.message-content h3 { font-size: 1.2em; }
+.message-content h4 { font-size: 1.1em; }
+
+.message-content h1:first-child,
+.message-content h2:first-child,
+.message-content h3:first-child,
+.message-content h4:first-child {
+    margin-top: 0;
+}
+
+/* Code inline */
+.message-content code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.message-user .message-content code {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Code block */
+.message-content pre {
+    background: var(--bg-light);
+    padding: 12px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.message-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+/* Blockquote */
+.message-content blockquote {
+    border-left: 3px solid var(--primary-color);
+    padding-left: 12px;
+    margin: 12px 0;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Horizontal rule */
+.message-content hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 16px 0;
+}
+
 .message-time {
     font-size: 11px;
     color: var(--text-muted);
