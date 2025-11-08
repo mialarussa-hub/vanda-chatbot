@@ -199,12 +199,52 @@ const VoiceManager = {
     },
 
     /**
+     * Pulisce il testo per TTS rimuovendo URL e sostituendo con frasi naturali
+     * @param {string} text - Testo originale con possibili URL e immagini
+     * @returns {string} - Testo pulito per TTS
+     */
+    cleanTextForTTS(text) {
+        let cleaned = text;
+
+        // 1. Gestisci immagini markdown ![alt](url)
+        const imageMatches = cleaned.match(/!\[.*?\]\(.*?\)/g);
+        if (imageMatches && imageMatches.length > 0) {
+            const imageCount = imageMatches.length;
+            const replacement = imageCount === 1
+                ? "Ti mostro un'immagine rappresentativa"
+                : "Ti mostro alcune immagini";
+
+            // Sostituisci la prima immagine con la frase
+            cleaned = cleaned.replace(/!\[.*?\]\(.*?\)/, replacement);
+            // Rimuovi le altre immagini
+            cleaned = cleaned.replace(/!\[.*?\]\(.*?\)/g, '');
+        }
+
+        // 2. Sostituisci link markdown [text](url)
+        cleaned = cleaned.replace(/\[([^\]]+)\]\(https?:\/\/[^\)]+\)/g, '$1, ti fornisco il link per visionare la pagina');
+
+        // 3. Sostituisci URL nudi (https://... o http://...)
+        cleaned = cleaned.replace(/https?:\/\/[^\s\)]+/g, 'ti fornisco il link per visionare la pagina');
+
+        // Pulisci spazi multipli e trim
+        cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+        return cleaned;
+    },
+
+    /**
      * Invia chunk di testo a TTS API e accoda audio
      */
     async sendChunkToTTS(text) {
         if (!text || text.trim().length === 0) return;
 
-        console.log(`🔊 Generating TTS for chunk: "${text.substring(0, 50)}..."`);
+        // Pulisci il testo rimuovendo URL e immagini
+        const cleanedText = this.cleanTextForTTS(text);
+
+        // Skip se dopo la pulizia non c'è testo
+        if (!cleanedText || cleanedText.trim().length === 0) return;
+
+        console.log(`🔊 Generating TTS for chunk: "${cleanedText.substring(0, 50)}..."`);
 
         try {
             const response = await fetch(`${CONFIG.API_URL}/api/voice/tts-chunk`, {
@@ -213,7 +253,7 @@ const VoiceManager = {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    text: text.trim(),
+                    text: cleanedText.trim(),
                     voice: this.config.voice,
                     model: this.config.model,
                     speed: this.config.speed
