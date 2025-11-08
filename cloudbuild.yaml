@@ -59,10 +59,14 @@ steps:
       - '--set-env-vars=LLM_DEFAULT_TEMPERATURE=0.5'
       - '--set-env-vars=LLM_MAX_TOKENS=500'
       - '--set-env-vars=LLM_STREAM_ENABLED=true'
+      # ElevenLabs TTS Configuration
+      - '--set-env-vars=ELEVENLABS_VOICE_ID=QITiGyM4owEZrBEf0QV8'
+      - '--set-env-vars=ELEVENLABS_MODEL_ID=eleven_turbo_v2_5'
       # Secrets from Secret Manager
       - '--set-secrets=OPENAI_API_KEY=openai-key:latest'
       - '--set-secrets=SUPABASE_URL=supabase-url:latest'
       - '--set-secrets=SUPABASE_KEY=supabase-key:latest'
+      - '--set-secrets=ELEVENLABS_API_KEY=elevenlabs-api-key:latest'
     id: 'deploy-cloud-run'
     waitFor: ['push-image-sha']
 
