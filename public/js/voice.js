@@ -181,7 +181,8 @@ const VoiceManager = {
             return null;
         }
 
-        // Cerca fine frase (. ! ? seguito da spazio o fine testo)
+        // Cerca SOLO fine frase (. ! ? seguito da spazio o fine testo)
+        // NON inviare se non c'è un delimitatore di frase completa
         const sentenceEndMatch = unsentText.match(/[.!?](\s|$)/);
 
         if (sentenceEndMatch) {
@@ -192,16 +193,8 @@ const VoiceManager = {
             return sentence;
         }
 
-        // Altrimenti, controlla se abbiamo abbastanza parole per un chunk
-        const wordCount = unsentText.trim().split(/\s+/).length;
-        if (wordCount >= this.config.minChunkWords) {
-            // Trova l'ultimo spazio per non tagliare una parola a metà
-            const lastSpaceMatch = unsentText.match(/^(.+)\s/);
-            if (lastSpaceMatch) {
-                return lastSpaceMatch[1].trim();
-            }
-        }
-
+        // Se non c'è un delimitatore di frase, aspetta altri chunk
+        // Il timeout (chunkTimeoutMs) invierà comunque il testo residuo alla fine
         return null;
     },
 
