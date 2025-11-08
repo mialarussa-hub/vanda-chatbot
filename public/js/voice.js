@@ -17,6 +17,7 @@ const VoiceManager = {
 
     // Buffer per accumulo testo durante streaming
     textBuffer: '',
+    sentTextLength: 0, // Traccia quanto testo è già stato inviato a TTS
     lastChunkTime: null,
     chunkTimeout: null,
 
@@ -144,38 +145,63 @@ const VoiceManager = {
             clearTimeout(this.chunkTimeout);
         }
 
-        // Check se abbiamo abbastanza per inviare a TTS
-        if (this.shouldSendChunk(this.textBuffer)) {
-            await this.sendChunkToTTS(this.textBuffer);
-            this.textBuffer = '';
+        // Trova frasi complete nel buffer
+        const completeSentence = this.extractCompleteSentence(this.textBuffer, this.sentTextLength);
+
+        if (completeSentence) {
+            // Invia solo la nuova frase completa (non tutto il buffer!)
+            await this.sendChunkToTTS(completeSentence);
+            // Aggiorna il contatore di testo inviato
+            this.sentTextLength += completeSentence.length;
         } else {
             // Imposta timeout per forzare invio se non arrivano altri chunk
             this.chunkTimeout = setTimeout(async () => {
-                if (this.textBuffer.trim().length > 0) {
-                    await this.sendChunkToTTS(this.textBuffer);
-                    this.textBuffer = '';
+                // Invia solo il testo NON ancora inviato
+                const remainingText = this.textBuffer.substring(this.sentTextLength).trim();
+                if (remainingText.length > 0) {
+                    await this.sendChunkToTTS(remainingText);
+                    this.sentTextLength = this.textBuffer.length;
                 }
             }, this.config.chunkTimeoutMs);
         }
     },
 
     /**
-     * Determina se il buffer contiene abbastanza testo per chunk TTS
+     * Estrae una frase completa dal buffer, partendo dalla posizione sentTextLength
+     * @param {string} buffer - Buffer completo di testo
+     * @param {number} startPos - Posizione da cui iniziare a cercare
+     * @returns {string|null} - Frase completa trovata, o null
      */
-    shouldSendChunk(text) {
-        // Invia se:
-        // 1. Trova fine frase (. ! ? seguito da spazio)
-        if (/[.!?]\s/.test(text)) {
-            return true;
+    extractCompleteSentence(buffer, startPos) {
+        // Estrai solo la parte NON ancora inviata
+        const unsentText = buffer.substring(startPos);
+
+        if (!unsentText || unsentText.trim().length === 0) {
+            return null;
         }
 
-        // 2. Supera parole minime
-        const wordCount = text.trim().split(/\s+/).length;
+        // Cerca fine frase (. ! ? seguito da spazio o fine testo)
+        const sentenceEndMatch = unsentText.match(/[.!?](\s|$)/);
+
+        if (sentenceEndMatch) {
+            // Trova posizione del delimitatore
+            const endPos = sentenceEndMatch.index + 1; // +1 per includere il punto/esclamazione/domanda
+            // Estrai la frase completa (include il delimitatore)
+            const sentence = unsentText.substring(0, endPos).trim();
+            return sentence;
+        }
+
+        // Altrimenti, controlla se abbiamo abbastanza parole per un chunk
+        const wordCount = unsentText.trim().split(/\s+/).length;
         if (wordCount >= this.config.minChunkWords) {
-            return true;
+            // Trova l'ultimo spazio per non tagliare una parola a metà
+            const lastSpaceMatch = unsentText.match(/^(.+)\s/);
+            if (lastSpaceMatch) {
+                return lastSpaceMatch[1].trim();
+            }
         }
 
-        return false;
+        return null;
     },
 
     /**
@@ -277,11 +303,15 @@ const VoiceManager = {
             this.chunkTimeout = null;
         }
 
-        // Invia eventuale testo rimasto nel buffer
-        if (this.textBuffer.trim().length > 0) {
-            await this.sendChunkToTTS(this.textBuffer);
-            this.textBuffer = '';
+        // Invia eventuale testo rimasto nel buffer (solo la parte NON ancora inviata)
+        const remainingText = this.textBuffer.substring(this.sentTextLength).trim();
+        if (remainingText.length > 0) {
+            await this.sendChunkToTTS(remainingText);
         }
+
+        // Reset buffer e contatore
+        this.textBuffer = '';
+        this.sentTextLength = 0;
 
         // Se non sta già parlando e non ci sono audio in queue, torna a listening
         if (!this.isPlaying && this.audioQueue.length === 0 && this.enabled) {
@@ -304,8 +334,9 @@ const VoiceManager = {
         this.audioQueue = [];
         this.isPlaying = false;
 
-        // Clear buffer
+        // Clear buffer e contatore
         this.textBuffer = '';
+        this.sentTextLength = 0;
         if (this.chunkTimeout) {
             clearTimeout(this.chunkTimeout);
             this.chunkTimeout = null;
@@ -352,6 +383,7 @@ const VoiceManager = {
     reset() {
         this.disable();
         this.textBuffer = '';
+        this.sentTextLength = 0;
         if (this.chunkTimeout) {
             clearTimeout(this.chunkTimeout);
             this.chunkTimeout = null;
