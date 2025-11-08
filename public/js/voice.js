@@ -149,18 +149,19 @@ const VoiceManager = {
         const completeSentence = this.extractCompleteSentence(this.textBuffer, this.sentTextLength);
 
         if (completeSentence) {
+            // Aggiorna il contatore PRIMA di chiamare async (evita race condition!)
+            this.sentTextLength += completeSentence.length;
             // Invia solo la nuova frase completa (non tutto il buffer!)
             await this.sendChunkToTTS(completeSentence);
-            // Aggiorna il contatore di testo inviato
-            this.sentTextLength += completeSentence.length;
         } else {
             // Imposta timeout per forzare invio se non arrivano altri chunk
             this.chunkTimeout = setTimeout(async () => {
                 // Invia solo il testo NON ancora inviato
                 const remainingText = this.textBuffer.substring(this.sentTextLength).trim();
                 if (remainingText.length > 0) {
-                    await this.sendChunkToTTS(remainingText);
+                    // Aggiorna contatore PRIMA (evita race condition!)
                     this.sentTextLength = this.textBuffer.length;
+                    await this.sendChunkToTTS(remainingText);
                 }
             }, this.config.chunkTimeoutMs);
         }
