@@ -716,7 +716,7 @@ function setLoadingState(loading) {
  * Genera UUID v4
  */
 function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         const r = Math.random() * 16 | 0;
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
@@ -739,14 +739,17 @@ function escapeHtml(text) {
 /**
  * Setup Voice Manager callbacks
  */
+/**
+ * Setup Voice Manager callbacks
+ */
 function setupVoiceManager() {
-    if (typeof VoiceManager === 'undefined') {
-        console.warn('⚠️ VoiceManager not loaded - voice features disabled');
+    if (typeof VoiceManagerWS === 'undefined') {
+        console.warn('⚠️ VoiceManagerWS not loaded - voice features disabled');
         return;
     }
 
     // Callback quando speech-to-text è pronto
-    VoiceManager.onTranscript = (transcript) => {
+    VoiceManagerWS.onTranscript = (transcript) => {
         console.log('🎤 Transcript received:', transcript);
         DOM.userInput.value = transcript;
         // Auto-submit dopo transcript
@@ -754,20 +757,20 @@ function setupVoiceManager() {
     };
 
     // Callback per cambio stato voice
-    VoiceManager.onStateChange = (state) => {
+    VoiceManagerWS.onStateChange = (state) => {
         updateVoiceUI(state);
     };
 
-    console.log('✅ VoiceManager callbacks configured');
+    console.log('✅ VoiceManagerWS callbacks configured');
 }
 
 /**
  * Toggle voice mode on/off
  */
 function handleVoiceToggle() {
-    if (typeof VoiceManager === 'undefined') return;
+    if (typeof VoiceManagerWS === 'undefined') return;
 
-    VoiceManager.toggle();
+    VoiceManagerWS.toggle();
 }
 
 /**

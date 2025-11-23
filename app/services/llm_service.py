@@ -355,47 +355,6 @@ Ricorda: sei un ambassador dello studio, trasmetti la passione e l'expertise di 
                     token_count += 1
 
                     # IMPORTANTE: Yielda token in formato SSE preservando esattamente
-                    # il contenuto (inclusi spazi, punteggiatura, newlines)
-                    # NON facciamo strip() o modifiche al content
-                    yield f"data: {content}\n\n"
-
-                # Check se stream finito
-                if chunk.choices[0].finish_reason:
-                    logger.debug(f"Stream finished: {chunk.choices[0].finish_reason}")
-
-            # Yielda segnale completamento
-            yield "data: [DONE]\n\n"
-
-            processing_time = (time.time() - start_time) * 1000
-
-            logger.info(
-                f"Streaming completed - Chunks: {token_count}, "
-                f"Time: {processing_time:.2f}ms, "
-                f"Chars: {len(full_response)}"
-            )
-
-        except RateLimitError as e:
-            logger.error(f"OpenAI rate limit exceeded during streaming: {e}")
-            error_msg = "Troppe richieste in corso. Riprova tra qualche secondo."
-            yield f"data: [ERROR] {error_msg}\n\n"
-
-        except APITimeoutError as e:
-            logger.error(f"OpenAI API timeout during streaming: {e}")
-            error_msg = "Il servizio sta impiegando troppo tempo. Riprova."
-            yield f"data: [ERROR] {error_msg}\n\n"
-
-        except APIError as e:
-            logger.error(f"OpenAI API error during streaming: {e}")
-            yield f"data: [ERROR] Errore del servizio AI: {str(e)}\n\n"
-
-        except Exception as e:
-            logger.error(f"Error in streaming response: {e}")
-            yield f"data: [ERROR] Errore interno: {str(e)}\n\n"
-
-    def _build_messages(
-        self,
-        user_message: str,
-        conversation_history: Optional[List[Message]] = None,
         rag_context: Optional[str] = None
     ) -> List[Dict[str, str]]:
         """
