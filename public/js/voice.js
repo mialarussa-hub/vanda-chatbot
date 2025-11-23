@@ -26,9 +26,9 @@ const VoiceManager = {
         voice: 'nova',
         model: 'tts-1',
         speed: 1.0,
-        silenceTimeout: 1500, // ms di silenzio prima auto-submit
-        minChunkWords: 15, // Parole minime per chunk TTS
-        chunkTimeoutMs: 2000 // Timeout per forzare invio chunk
+        silenceTimeout: 800, // Reduced for faster response
+        minChunkWords: 5, // Reduced for faster TTS chunks
+        chunkTimeoutMs: 1500 // Reduced timeout
     },
 
     // Callbacks
@@ -183,7 +183,9 @@ const VoiceManager = {
 
         // Cerca SOLO fine frase (. ! ? seguito da spazio o fine testo)
         // NON inviare se non c'è un delimitatore di frase completa
-        const sentenceEndMatch = unsentText.match(/[.!?](\s|$)/);
+        // Cerca fine frase (. ! ?) O pause naturali (, ;)
+        // Questo riduce la latenza inviando chunk più piccoli
+        const sentenceEndMatch = unsentText.match(/[.!?](?=\s|$)|[,;](?=\s)/);
 
         if (sentenceEndMatch) {
             // Trova posizione del delimitatore

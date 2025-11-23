@@ -102,27 +102,28 @@ class RAGService:
     def search_similar_documents(
         self,
         query_embedding: List[float],
+        query_text: str,
         match_count: Optional[int] = None,
         match_threshold: Optional[float] = None,
         metadata_filter: Optional[MetadataFilter] = None
     ) -> List[DocumentChunk]:
         """
-        Cerca documenti simili usando PostgreSQL stored function con pgvector.
+        Cerca documenti simili usando Hybrid Search (Vector + Keyword).
 
-        Usa la funzione match_documents() che sfrutta l'operatore <=> di pgvector
-        e l'indice HNSW per ricerche veloci e similarity scores accurate (0.7-0.9).
+        Usa la funzione RPC `hybrid_search` su Supabase che combina:
+        1. Vector Similarity (Cosine Distance)
+        2. Full Text Search (BM25 su colonna fts)
+        3. Reranking con Reciprocal Rank Fusion (RRF)
 
         Args:
-            query_embedding: Vettore embedding della query (1536 dimensioni)
-            match_count: Numero massimo di risultati (default: da settings)
-            match_threshold: Soglia minima similarity 0-1 (default: da settings)
-            metadata_filter: Filtri opzionali per metadata JSONB
+            query_embedding: Vettore embedding della query
+            query_text: Testo originale della query (per keyword search)
+            match_count: Numero max risultati
+            match_threshold: Soglia minima similarity
+            metadata_filter: Filtri metadata
 
         Returns:
-            Lista di DocumentChunk ordinati per similarity (maggiore a minore)
-
-        Raises:
-            ValueError: Se l'embedding ha dimensioni errate
+            Lista di DocumentChunk ordinati per rilevanza combinata
         """
         try:
             # Usa valori default se non specificati
@@ -139,52 +140,58 @@ class RAGService:
                 )
 
             logger.info(
-                f"🔍 Vector search via RPC - "
-                f"match_count: {match_count}, threshold: {match_threshold}"
+                f"🔍 Hybrid Search via RPC - "
+                f"text: '{query_text}', count: {match_count}, threshold: {match_threshold}"
             )
 
-            # ================================================================
-            # VECTOR SEARCH: Usa PostgreSQL stored function (pgvector)
-            # ================================================================
-
-            # Chiama la funzione database usando RPC
-            # La funzione usa l'operatore <=> (cosine distance) di pgvector
-            # e l'indice HNSW per ricerca veloce
-            response = self.client.rpc(
-                'match_documents',
-                {
-                    'query_embedding': query_embedding,
-                    'match_threshold': match_threshold,
-                    'match_count': match_count
-                }
-            ).execute()
+            # Chiama la funzione ibrida su Supabase
+            try:
+                response = self.client.rpc(
+                    'hybrid_search',
+                    {
+                        'query_text': query_text,
+                        'query_embedding': query_embedding,
+                        'match_count': match_count,
+                        'match_threshold': match_threshold,
+                        'full_text_weight': 1.0,  # Peso Keyword
+                        'semantic_weight': 1.0    # Peso Vector
+                    }
+                ).execute()
+            except Exception as rpc_error:
+                logger.warning(f"Hybrid search RPC failed (function might be missing), falling back to vector search: {rpc_error}")
+                # Fallback alla vecchia funzione match_documents
+                response = self.client.rpc(
+                    'match_documents',
+                    {
+                        'query_embedding': query_embedding,
+                        'match_threshold': match_threshold,
+                        'match_count': match_count
+                    }
+                ).execute()
 
             if not response.data:
-                logger.warning("No documents found matching the similarity threshold")
+                logger.warning("No documents found matching the criteria")
                 return []
 
-            logger.info(f"✅ Retrieved {len(response.data)} similar documents")
-
+            logger.info(f"✅ Retrieved {len(response.data)} hybrid results")
             results = response.data
 
-            # Applica filtri metadata client-side se forniti
+            # Applica filtri metadata client-side (se non gestiti dalla RPC)
             if metadata_filter:
                 results = self._filter_results_by_metadata(results, metadata_filter)
                 logger.info(f"After metadata filtering: {len(results)} documents")
 
-            # Log similarity scores per debugging
+            # Log scores per debugging
             if results:
-                similarities = [r['similarity'] for r in results]
-                logger.info(f"📊 Similarity range: {min(similarities):.3f} - {max(similarities):.3f}")
-
-                # Log top 5 documenti
-                logger.info("📋 Top 5 documents:")
+                logger.info("📋 Top 5 Hybrid Results:")
                 for idx, r in enumerate(results[:5], 1):
                     heading = r['metadata'].get('heading', 'NO TITLE')
-                    priority = r['metadata'].get('priority', 0)
-                    logger.info(f"  [{idx}] {heading} | Priority: {priority} | Sim: {r['similarity']:.3f}")
+                    sim = r.get('similarity', 0)
+                    fts = r.get('fts_score', 0)
+                    combined = r.get('combined_score', 0)
+                    logger.info(f"  [{idx}] {heading} | Comb: {combined:.3f} (Sim: {sim:.2f}, FTS: {fts:.2f})")
 
-            # Converti in DocumentChunk Pydantic models
+            # Converti in DocumentChunk
             chunks = []
             for r in results:
                 try:
@@ -192,21 +199,16 @@ class RAGService:
                         id=r['id'],
                         content=r['content'],
                         metadata=DocumentMetadata(**r['metadata']),
-                        similarity=round(r['similarity'], 4)
+                        similarity=round(r.get('combined_score', 0), 4) # Usa score combinato
                     ))
                 except Exception as e:
                     logger.error(f"Error creating DocumentChunk: {e}")
                     continue
 
-            logger.info(
-                f"Found {len(chunks)} relevant documents "
-                f"(threshold: {match_threshold})"
-            )
-
             return chunks
 
         except Exception as e:
-            logger.error(f"Error in similarity search: {e}", exc_info=True)
+            logger.error(f"Error in hybrid search: {e}", exc_info=True)
             return []
 
     def _filter_results_by_metadata(

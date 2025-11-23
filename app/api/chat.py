@@ -213,12 +213,13 @@ async def chat(request: ChatRequest):
                     text=request.message
                 )
 
-                # Cerca documenti simili usando pgvector RPC (usa parametri dal pannello admin)
-                logger.debug("Searching similar documents via pgvector RPC...")
+                # Cerca documenti simili usando Hybrid Search
+                logger.debug("Searching similar documents via Hybrid Search...")
                 documents = rag_service.search_similar_documents(
                     query_embedding=query_embedding,
-                    match_count=None,  # Usa default da database (configurabile dal pannello admin)
-                    match_threshold=None,  # Usa default da database (configurabile dal pannello admin)
+                    query_text=request.message,  # Passa il testo per la keyword search
+                    match_count=None,
+                    match_threshold=None,
                     metadata_filter=request.rag_filters
                 )
 
