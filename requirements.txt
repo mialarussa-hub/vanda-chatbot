@@ -29,6 +29,7 @@ pydantic-settings==2.0.3
 # HTTP Client (versione compatibile con openai e supabase)
 httpx==0.24.1
 requests==2.31.0              # Per chiamate dirette a ElevenLabs API
+aiohttp==3.9.1                # Per streaming audio asincrono (WebSocket)
 
 # Logging
 loguru==0.7.2
